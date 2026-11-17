@@ -4,8 +4,7 @@ import UniformTypeIdentifiers
 /// 历史记录主窗口：侧边栏（全部 / 收藏 / 按日期） + 列表 + 详情
 struct HistoryView: View {
     @EnvironmentObject private var store: ClipStore
-    @State private var selection = Set<ClipItem.ID>()
-    @State private var exportMessage: String?
+    @EnvironmentObject private var ui: HistoryState
 
     var body: some View {
         NavigationSplitView {
@@ -17,8 +16,8 @@ struct HistoryView: View {
         } detail: {
             if let item = singleSelection {
                 ClipDetailView(item: item)
-            } else if selection.count > 1 {
-                placeholder("已选择 \(selection.count) 条记录", symbol: "square.stack")
+            } else if ui.selection.count > 1 {
+                placeholder("已选择 \(ui.selection.count) 条记录", symbol: "square.stack")
             } else {
                 placeholder("选择一条记录查看详情\n双击即可复制", symbol: "doc.on.clipboard")
             }
@@ -45,20 +44,20 @@ struct HistoryView: View {
             }
         }
         .frame(minWidth: 820, minHeight: 480)
-        .alert("提示", isPresented: Binding(get: { exportMessage != nil || store.lastError != nil },
-                                          set: { if !$0 { exportMessage = nil; store.lastError = nil } })) {
+        .alert("提示", isPresented: Binding(get: { ui.exportMessage != nil || store.lastError != nil },
+                                          set: { if !$0 { ui.exportMessage = nil; store.lastError = nil } })) {
             Button("好") {}
         } message: {
-            Text(exportMessage ?? store.lastError ?? "")
+            Text(ui.exportMessage ?? store.lastError ?? "")
         }
         .onChange(of: store.items) { items in
             let ids = Set(items.map(\.id))
-            selection = selection.intersection(ids)
+            ui.selection = ui.selection.intersection(ids)
         }
     }
 
     private var itemList: some View {
-        List(selection: $selection) {
+        List(selection: $ui.selection) {
             ForEach(store.items) { item in
                 ClipRowView(item: item)
             }
@@ -84,7 +83,7 @@ struct HistoryView: View {
             }
         }
         .onDeleteCommand {
-            store.delete(store.items.filter { selection.contains($0.id) })
+            store.delete(store.items.filter { ui.selection.contains($0.id) })
         }
         .overlay {
             if store.items.isEmpty {
@@ -106,7 +105,7 @@ struct HistoryView: View {
     }
 
     private var singleSelection: ClipItem? {
-        guard selection.count == 1, let id = selection.first else { return nil }
+        guard ui.selection.count == 1, let id = ui.selection.first else { return nil }
         return store.items.first { $0.id == id }
     }
 
@@ -130,7 +129,7 @@ struct HistoryView: View {
             let dir = try Exporter.export(store.items, root: store.rootURL, to: folder)
             NSWorkspace.shared.activateFileViewerSelecting([dir])
         } catch {
-            exportMessage = "导出失败：\(error.localizedDescription)"
+            ui.exportMessage = "导出失败：\(error.localizedDescription)"
         }
     }
 }

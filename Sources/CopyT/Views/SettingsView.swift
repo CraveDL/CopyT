@@ -8,11 +8,7 @@ struct SettingsView: View {
     @AppStorage(Preferences.Key.ignoredApps) private var ignoredApps = Preferences.defaultIgnoredApps
     @AppStorage(Preferences.Key.hotKeyEnabled) private var hotKeyEnabled = true
 
-    @State private var launchAtLogin = LaunchAtLogin.isEnabled
-    @State private var moveExisting = true
-    @State private var storageSize: Int64?
-    @State private var message: String?
-    @State private var confirmClear = false
+    @EnvironmentObject private var ui: SettingsState
 
     var body: some View {
         Form {
@@ -25,10 +21,10 @@ struct SettingsView: View {
                         .help(store.rootURL.path)
                 }
                 LabeledContent("占用空间") {
-                    Text(storageSize.map { ByteCountFormatter.string(fromByteCount: $0, countStyle: .file) } ?? "计算中…")
+                    Text(ui.storageSize.map { ByteCountFormatter.string(fromByteCount: $0, countStyle: .file) } ?? "计算中…")
                         .monospacedDigit()
                 }
-                Toggle("更改位置时移动现有数据", isOn: $moveExisting)
+                Toggle("更改位置时移动现有数据", isOn: $ui.moveExisting)
                 HStack {
                     Button("更改位置…", action: chooseLocation)
                     Button("在访达中打开") { NSWorkspace.shared.open(store.rootURL) }
@@ -73,11 +69,11 @@ struct SettingsView: View {
             }
 
             Section("通用") {
-                Toggle("登录时自动启动", isOn: $launchAtLogin)
-                    .onChange(of: launchAtLogin) { on in
+                Toggle("登录时自动启动", isOn: $ui.launchAtLogin)
+                    .onChange(of: ui.launchAtLogin) { on in
                         do { try LaunchAtLogin.set(on) } catch {
-                            message = "设置开机启动失败：\(error.localizedDescription)\n请确认 CopyT.app 位于“应用程序”文件夹中。"
-                            launchAtLogin = LaunchAtLogin.isEnabled
+                            ui.message = "设置开机启动失败：\(error.localizedDescription)\n请确认 CopyT.app 位于“应用程序”文件夹中。"
+                            ui.launchAtLogin = LaunchAtLogin.isEnabled
                         }
                     }
                 Toggle("全局快捷键 \(HotKeyManager.displayString) 打开历史记录", isOn: $hotKeyEnabled)
@@ -91,7 +87,7 @@ struct SettingsView: View {
                     }
                     .disabled(retentionDays == 0)
                     Spacer()
-                    Button("清空历史（保留收藏）…", role: .destructive) { confirmClear = true }
+                    Button("清空历史（保留收藏）…", role: .destructive) { ui.confirmClear = true }
                 }
             }
         }
@@ -99,7 +95,7 @@ struct SettingsView: View {
         .frame(width: 540, height: 640)
         .task { refreshSize() }
         .onChange(of: retentionDays) { _ in store.cleanupExpired() }
-        .confirmationDialog("确定清空所有未收藏的记录吗？", isPresented: $confirmClear) {
+        .confirmationDialog("确定清空所有未收藏的记录吗？", isPresented: $ui.confirmClear) {
             Button("清空", role: .destructive) {
                 store.clearUnpinned()
                 refreshSize()
@@ -107,19 +103,20 @@ struct SettingsView: View {
         } message: {
             Text("此操作无法撤销，对应的图片文件也会被删除。")
         }
-        .alert("提示", isPresented: Binding(get: { message != nil }, set: { if !$0 { message = nil } })) {
+        .alert("提示", isPresented: Binding(get: { ui.message != nil }, set: { if !$0 { ui.message = nil } })) {
             Button("好") {}
         } message: {
-            Text(message ?? "")
+            Text(ui.message ?? "")
         }
     }
 
     private func refreshSize() {
         let url = store.rootURL
-        storageSize = nil
+        let ui = self.ui
+        ui.storageSize = nil
         Task.detached(priority: .utility) {
             let size = ClipStore.directorySize(url)
-            await MainActor.run { storageSize = size }
+            await MainActor.run { ui.storageSize = size }
         }
     }
 
@@ -137,14 +134,14 @@ struct SettingsView: View {
 
     private func changeLocation(to url: URL) {
         do {
-            switch try store.changeStorage(to: url, moveExisting: moveExisting) {
-            case .moved: message = "已将数据移动到新位置。"
-            case .switchedToExisting: message = "新位置已有 CopyT 资料库，已切换为使用该资料库（原位置的数据保持不变）。"
-            case .switchedToEmpty: message = "已切换到新位置（原位置的数据保持不变）。"
+            switch try store.changeStorage(to: url, moveExisting: ui.moveExisting) {
+            case .moved: ui.message = "已将数据移动到新位置。"
+            case .switchedToExisting: ui.message = "新位置已有 CopyT 资料库，已切换为使用该资料库（原位置的数据保持不变）。"
+            case .switchedToEmpty: ui.message = "已切换到新位置（原位置的数据保持不变）。"
             case .unchanged: break
             }
         } catch {
-            message = "更改位置失败：\(error.localizedDescription)"
+            ui.message = "更改位置失败：\(error.localizedDescription)"
         }
         refreshSize()
     }

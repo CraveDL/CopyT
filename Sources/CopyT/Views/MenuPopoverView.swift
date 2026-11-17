@@ -4,8 +4,7 @@ import SwiftUI
 struct MenuPopoverView: View {
     @EnvironmentObject private var store: ClipStore
     @AppStorage(Preferences.Key.paused) private var paused = false
-    @State private var query = ""
-    @State private var results: [ClipItem] = []
+    @EnvironmentObject private var ui: PopoverState
     @FocusState private var searchFocused: Bool
 
     var onClose: () -> Void
@@ -16,12 +15,12 @@ struct MenuPopoverView: View {
         VStack(spacing: 0) {
             HStack(spacing: 6) {
                 Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-                TextField("搜索剪贴板历史", text: $query)
+                TextField("搜索剪贴板历史", text: $ui.query)
                     .textFieldStyle(.plain)
                     .focused($searchFocused)
-                    .onSubmit { if let first = results.first { pick(first) } }
-                if !query.isEmpty {
-                    Button { query = "" } label: { Image(systemName: "xmark.circle.fill") }
+                    .onSubmit { if let first = ui.results.first { pick(first) } }
+                if !ui.query.isEmpty {
+                    Button { ui.query = "" } label: { Image(systemName: "xmark.circle.fill") }
                         .buttonStyle(.plain)
                         .foregroundStyle(.secondary)
                 }
@@ -30,18 +29,24 @@ struct MenuPopoverView: View {
 
             Divider()
 
-            if results.isEmpty {
+            if ui.results.isEmpty {
                 VStack(spacing: 6) {
                     Image(systemName: "doc.on.clipboard").font(.largeTitle).foregroundStyle(.tertiary)
-                    Text(query.isEmpty ? "还没有记录，复制点什么试试" : "没有匹配的记录")
+                    Text(ui.query.isEmpty ? "还没有记录，复制点什么试试" : "没有匹配的记录")
                         .foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ScrollView {
                     LazyVStack(spacing: 0) {
-                        ForEach(results) { item in
-                            HoverRow { ClipRowView(item: item, compact: true) }
+                        ForEach(ui.results) { item in
+                            HoverRow(hovering: ui.hoveredID == item.id,
+                                     onHover: { inside in
+                                         if inside { ui.hoveredID = item.id }
+                                         else if ui.hoveredID == item.id { ui.hoveredID = nil }
+                                     }) {
+                                ClipRowView(item: item, compact: true)
+                            }
                                 .onTapGesture { pick(item) }
                                 .contextMenu {
                                     Button("复制") { pick(item) }
@@ -78,12 +83,12 @@ struct MenuPopoverView: View {
             reload()
             searchFocused = true
         }
-        .onChange(of: query) { _ in reload() }
+        .onChange(of: ui.query) { _ in reload() }
         .onReceive(store.$revision) { _ in reload() }
     }
 
     private func reload() {
-        results = store.quickSearch(query, limit: 60)
+        ui.results = store.quickSearch(ui.query, limit: 60)
     }
 
     private func pick(_ item: ClipItem) {

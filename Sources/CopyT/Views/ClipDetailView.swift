@@ -3,7 +3,9 @@ import SwiftUI
 struct ClipDetailView: View {
     let item: ClipItem
     @EnvironmentObject private var store: ClipStore
-    @State private var copied = false
+    @EnvironmentObject private var ui: HistoryState
+
+    private var copied: Bool { ui.copiedID == item.id }
 
     private static let maxDisplayChars = 100_000
 
@@ -16,7 +18,6 @@ struct ClipDetailView: View {
             Divider()
             footer
         }
-        .onChange(of: item.id) { _ in copied = false }
     }
 
     private var header: some View {
@@ -26,7 +27,7 @@ struct ClipDetailView: View {
             Spacer()
             Button {
                 store.copy(item)
-                copied = true
+                ui.copiedID = item.id
             } label: {
                 Label(copied ? "已复制" : "复制", systemImage: copied ? "checkmark" : "doc.on.doc")
             }

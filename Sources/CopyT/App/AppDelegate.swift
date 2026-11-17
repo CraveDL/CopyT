@@ -19,6 +19,8 @@ enum CopyTMain {
 final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     let store = ClipStore()
     let monitor = ClipboardMonitor()
+    private let historyState = HistoryState()
+    private let settingsState = SettingsState()
 
     private var statusItem: NSStatusItem!
     private let popover = NSPopover()
@@ -103,7 +105,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             onClose: { [weak self] in self?.popover.performClose(nil) },
             onOpenHistory: { [weak self] in self?.showHistory() },
             onOpenSettings: { [weak self] in self?.showSettings() }
-        ).environmentObject(store)
+        )
+        .environmentObject(store)
+        .environmentObject(PopoverState())
         popover.contentViewController = NSHostingController(rootView: root)
         NSApp.activate(ignoringOtherApps: true)
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
@@ -144,7 +148,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     func showHistory() {
         popover.performClose(nil)
         if historyWindow == nil {
-            let host = NSHostingController(rootView: HistoryView().environmentObject(store))
+            let host = NSHostingController(rootView: HistoryView().environmentObject(store).environmentObject(historyState))
             host.sizingOptions = []
             let w = NSWindow(contentViewController: host)
             w.title = "CopyT 剪贴板历史"
@@ -163,7 +167,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     @objc func showSettings() {
         popover.performClose(nil)
         if settingsWindow == nil {
-            let host = NSHostingController(rootView: SettingsView().environmentObject(store))
+            let host = NSHostingController(rootView: SettingsView().environmentObject(store).environmentObject(settingsState))
             let w = NSWindow(contentViewController: host)
             w.title = "CopyT 设置"
             w.styleMask = [.titled, .closable]

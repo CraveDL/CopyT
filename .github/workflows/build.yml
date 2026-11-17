@@ -20,3 +20,16 @@ jobs:
         with:
           name: CopyT-arm64
           path: build/CopyT.zip
+
+  # 只用 Command Line Tools（不用完整 Xcode）编译，确保没有依赖 SwiftUI 宏插件
+  build-clt:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Command Line Tools
+        run: |
+          sudo xcode-select -s /Library/Developer/CommandLineTools
+          xcode-select -p
+          swift --version
+      - name: Build
+        run: swift build -c release --arch arm64

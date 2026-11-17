@@ -78,8 +78,9 @@ struct ClipRowView: View {
 
 /// 鼠标悬停高亮的行（用于菜单栏弹窗）
 struct HoverRow<Content: View>: View {
+    var hovering: Bool
+    var onHover: (Bool) -> Void
     @ViewBuilder var content: Content
-    @State private var hovering = false
 
     var body: some View {
         content
@@ -90,6 +91,6 @@ struct HoverRow<Content: View>: View {
                     .fill(hovering ? Color.accentColor.opacity(0.18) : .clear)
             )
             .contentShape(Rectangle())
-            .onHover { hovering = $0 }
+            .onHover(perform: onHover)
     }
 }

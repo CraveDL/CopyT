@@ -31,7 +31,9 @@
 
 ## 构建
 
-需要 macOS 13+ 和 Xcode 15+（或 Command Line Tools 中的 Swift 5.9+）。
+需要 macOS 13+，以及 Xcode 15+ **或** 仅安装 Command Line Tools（`xcode-select --install`）即可。
+
+> 代码中刻意没有使用 `@State` / `@StateObject`：新版 SDK 里它们依赖只随 Xcode 提供的 SwiftUI 宏插件，只装 Command Line Tools 时会报 `plugin for module 'SwiftUIMacros' not found`。界面状态统一放在 `Views/ViewState.swift` 中。
 
 ```bash
 git clone https://github.com/CraveDL/copyT.git
