@@ -54,8 +54,11 @@ struct ClipItem: Identifiable, Hashable {
     var previewTitle: String {
         switch kind {
         case .text, .richText:
-            let trimmed = (text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-            let firstLines = trimmed.split(separator: "\n", maxSplits: 2, omittingEmptySubsequences: true)
+            // 只看开头一段，避免超长文本拖慢列表
+            let head = (text ?? "").prefix(2000)
+            let firstLines = head.split(whereSeparator: \.isNewline)
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+                .filter { !$0.isEmpty }
                 .prefix(2)
                 .joined(separator: " ")
             return firstLines.count > 200 ? String(firstLines.prefix(200)) + "…" : firstLines

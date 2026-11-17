@@ -6,8 +6,20 @@ import CryptoKit
 final class ClipboardMonitor {
     var onCapture: ((Capture) -> Void)?
 
+    let pasteboard: NSPasteboard
+    /// 判断来源应用（测试时可替换）
+    var frontmostApp: () -> (name: String?, bundleID: String?) = {
+        let app = NSWorkspace.shared.frontmostApplication
+        return (app?.localizedName, app?.bundleIdentifier)
+    }
+
     private var timer: Timer?
-    private var lastChangeCount = NSPasteboard.general.changeCount
+    private var lastChangeCount: Int
+
+    init(pasteboard: NSPasteboard = .general) {
+        self.pasteboard = pasteboard
+        self.lastChangeCount = pasteboard.changeCount
+    }
 
     /// 密码管理器等应用会用这些类型标记"不要记录"
     /// 参见 http://nspasteboard.org
@@ -35,11 +47,12 @@ final class ClipboardMonitor {
 
     /// 本应用自己写入剪贴板后调用，避免把它重复记录
     func markOwnWrite() {
-        lastChangeCount = NSPasteboard.general.changeCount
+        lastChangeCount = pasteboard.changeCount
     }
 
-    private func poll() {
-        let pb = NSPasteboard.general
+    /// 检查一次剪贴板（定时器调用；测试中可直接调用）
+    func poll() {
+        let pb = pasteboard
         let count = pb.changeCount
         guard count != lastChangeCount else { return }
         lastChangeCount = count
@@ -49,10 +62,10 @@ final class ClipboardMonitor {
         let types = Set(pb.types ?? [])
         guard !types.isEmpty, types.isDisjoint(with: Self.privateTypes) else { return }
 
-        let app = NSWorkspace.shared.frontmostApplication
-        if let bid = app?.bundleIdentifier, Preferences.ignoredBundleIDs.contains(bid) { return }
+        let app = frontmostApp()
+        if let bid = app.bundleID, Preferences.ignoredBundleIDs.contains(bid) { return }
 
-        if let capture = Self.makeCapture(from: pb, types: types, sourceApp: app?.localizedName) {
+        if let capture = Self.makeCapture(from: pb, types: types, sourceApp: app.name) {
             onCapture?(capture)
         }
     }
@@ -61,7 +74,8 @@ final class ClipboardMonitor {
 
     static func makeCapture(from pb: NSPasteboard,
                             types: Set<NSPasteboard.PasteboardType>,
-                            sourceApp: String?) -> Capture? {
+                            sourceApp: String?,
+                            maxImageBytes: Int = Preferences.maxImageBytes) -> Capture? {
         // 1. 文件（Finder 复制文件时也会带上文件名字符串和图标，所以优先判断）
         if types.contains(.fileURL),
            let urls = pb.readObjects(forClasses: [NSURL.self],
@@ -90,7 +104,7 @@ final class ClipboardMonitor {
 
         // 3. 图片（截图、浏览器"拷贝图像"等）
         if let png = imagePNGData(from: pb, types: types) {
-            guard png.count <= Preferences.maxImageBytes else { return nil }
+            guard png.count <= maxImageBytes else { return nil }
             return Capture(kind: .image, text: nil, data: png, fileExtension: "png",
                            sourceApp: sourceApp, hash: sha256("image", png), byteSize: png.count)
         }
@@ -122,8 +136,7 @@ final class ClipboardMonitor {
 /// 把历史记录写回剪贴板
 enum PasteboardWriter {
     @discardableResult
-    static func write(_ item: ClipItem, root: URL) -> Bool {
-        let pb = NSPasteboard.general
+    static func write(_ item: ClipItem, root: URL, to pb: NSPasteboard = .general) -> Bool {
         let dataURL = item.dataPath.map { root.appendingPathComponent($0) }
 
         switch item.kind {

@@ -9,6 +9,11 @@ let package = Package(
             name: "CopyT",
             path: "Sources/CopyT",
             linkerSettings: [.linkedLibrary("sqlite3")]
-        )
+        ),
+        .testTarget(
+            name: "CopyTTests",
+            dependencies: ["CopyT"],
+            path: "Tests/CopyTTests"
+        ),
     ]
 )

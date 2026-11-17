@@ -1,4 +1,4 @@
-name: Build
+name: Build & Test
 
 on:
   push:
@@ -11,9 +11,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Swift version
-        run: swift --version
+        run: swift --version && sw_vers
+      - name: Unit tests
+        run: swift test --parallel 2>&1 | tee unit-tests.log
       - name: Build app
         run: ./scripts/build-app.sh
+      - name: End-to-end tests (real app + system pasteboard)
+        run: ./scripts/e2e/run.sh
       - name: Zip
         run: cd build && ditto -c -k --keepParent CopyT.app CopyT.zip
       - uses: actions/upload-artifact@v4

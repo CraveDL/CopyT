@@ -29,8 +29,13 @@ final class ClipStore: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private let listLimit = 3000
 
-    init() {
-        rootURL = Preferences.storageURL
+    /// 写回剪贴板的目标（测试时替换为私有剪贴板）
+    var pasteboard: NSPasteboard = .general
+    /// 更改存储位置后是否写入用户设置（测试时关闭）
+    var persistsStorageLocation = true
+
+    init(rootURL: URL = Preferences.storageURL) {
+        self.rootURL = rootURL
         openDatabase()
         $searchText
             .removeDuplicates()
@@ -91,9 +96,8 @@ final class ClipStore: ObservableObject {
 
     // MARK: - 写入
 
-    func add(_ capture: Capture) {
+    func add(_ capture: Capture, at now: Date = Date()) {
         guard let db else { return }
-        let now = Date()
         do {
             if let existing = try db.item(withHash: capture.hash) {
                 try db.touch(id: existing.id, date: now, sourceApp: capture.sourceApp)
@@ -126,7 +130,7 @@ final class ClipStore: ObservableObject {
     // MARK: - 操作
 
     func copy(_ item: ClipItem) {
-        guard PasteboardWriter.write(item, root: rootURL) else {
+        guard PasteboardWriter.write(item, root: rootURL, to: pasteboard) else {
             lastError = "无法复制：原始数据或文件已不存在"
             return
         }
@@ -175,10 +179,9 @@ final class ClipStore: ObservableObject {
     // MARK: - 清理
 
     /// 按"保留时长"删除过期且未收藏的记录
-    func cleanupExpired() {
-        let days = Preferences.retentionDays
+    func cleanupExpired(retentionDays days: Int = Preferences.retentionDays, now: Date = Date()) {
         guard days > 0 else { return }
-        let cutoff = Calendar.current.date(byAdding: .day, value: -days, to: Date()) ?? Date()
+        let cutoff = Calendar.current.date(byAdding: .day, value: -days, to: now) ?? now
         purgeUnpinned(before: cutoff)
     }
 
@@ -252,7 +255,7 @@ final class ClipStore: ObservableObject {
         }
 
         rootURL = newRoot
-        Preferences.storageURL = newRoot
+        if persistsStorageLocation { Preferences.storageURL = newRoot }
         openDatabase()
         changed()
         return result
