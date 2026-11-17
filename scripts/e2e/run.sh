@@ -120,6 +120,10 @@ check "记录单个文件" wait_for "SELECT COUNT(*) FROM items WHERE kind = 'fi
 pb files "$WORK/docs/报告 A.txt" "$WORK/docs/b.mov" "$WORK/docs/子文件夹" "$WORK"/docs/f*.jpg
 check "一次复制 11 个文件/文件夹，全部记录" wait_for "SELECT MAX(length(text) - length(replace(text, char(10), '')) + 1) FROM items WHERE kind = 'file';" 11
 check "多文件记录包含文件夹和中文名" wait_for "SELECT COUNT(*) FROM items WHERE kind = 'file' AND text LIKE '%子文件夹%' AND text LIKE '%报告 A.txt%' AND text LIKE '%b.mov%';" 1
+if [[ $FAIL -gt 0 ]]; then
+  echo "     诊断 - 剪贴板条目:"; pb dump | head -5 | sed 's/^/       /'
+  echo "     诊断 - 已记录的文件:"; q "SELECT replace(text, char(10), ' | ') FROM items WHERE kind = 'file';" | sed 's/^/       /'
+fi
 
 echo "▶ 7. 隐私"
 pb concealed "my-secret-password-123"

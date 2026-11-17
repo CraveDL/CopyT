@@ -96,13 +96,19 @@ final class ClipboardMonitor {
 
     /// 读取剪贴板上全部文件 URL：逐个条目读取，并与 readObjects 的结果取较完整者
     static func fileURLs(_ pb: NSPasteboard) -> [URL] {
-        let perItem: [URL] = (pb.pasteboardItems ?? []).compactMap { item in
-            guard let s = item.string(forType: .fileURL), let url = URL(string: s), url.isFileURL else { return nil }
-            return url.standardizedFileURL
+        // 文件引用 URL（file:///.file/id=…）需转换为普通路径
+        func resolve(_ url: URL) -> URL? {
+            guard url.isFileURL else { return nil }
+            return ((url as NSURL).filePathURL ?? url).standardizedFileURL
         }
-        let objects = (pb.readObjects(forClasses: [NSURL.self],
-                                      options: [.urlReadingFileURLsOnly: true]) as? [URL]) ?? []
-        return perItem.count >= objects.count ? perItem : objects
+        let perItem: [URL] = (pb.pasteboardItems ?? []).compactMap { item in
+            guard let s = item.string(forType: .fileURL), let url = URL(string: s) else { return nil }
+            return resolve(url)
+        }
+        let objects = ((pb.readObjects(forClasses: [NSURL.self],
+                                       options: [.urlReadingFileURLsOnly: true]) as? [URL]) ?? [])
+            .compactMap(resolve)
+        return perItem.count > objects.count ? perItem : objects
     }
 
     // MARK: - 解析剪贴板

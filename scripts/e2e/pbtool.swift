@@ -37,9 +37,19 @@ case "makepng":
     NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
     NSColor.systemTeal.setFill(); NSRect(x: 0, y: 0, width: 40, height: 30).fill()
     try! rep.representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath: args[0]))
-case "files":
+case "files": // 与 Finder 一样，每个文件一个条目，并立即写入数据
     pb.clearContents()
-    pb.writeObjects(args.map { URL(fileURLWithPath: $0) as NSURL })
+    let items: [NSPasteboardItem] = args.map { path in
+        let item = NSPasteboardItem()
+        item.setString(URL(fileURLWithPath: path).absoluteString, forType: .fileURL)
+        item.setString((path as NSString).lastPathComponent, forType: .string)
+        return item
+    }
+    pb.writeObjects(items)
+case "dump": // 诊断：列出每个条目的类型和文件 URL
+    for (i, item) in (pb.pasteboardItems ?? []).enumerated() {
+        print("item \(i): \(item.types.map(\.rawValue).joined(separator: ", ")) url=\(item.string(forType: .fileURL) ?? "-")")
+    }
 case "concealed":
     pb.clearContents()
     pb.setString(args[0], forType: .string)
@@ -53,3 +63,6 @@ default:
     FileHandle.standardError.write("unknown command \(cmd)\n".data(using: .utf8)!)
     exit(2)
 }
+
+// 给剪贴板服务一点时间同步数据后再退出
+RunLoop.current.run(until: Date().addingTimeInterval(0.3))
