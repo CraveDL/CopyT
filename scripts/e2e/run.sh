@@ -14,7 +14,7 @@ DB="$ROOT/copyt.sqlite"
 PBTOOL="$WORK/pbtool"
 PASS=0; FAIL=0; APP_PID=""
 
-[[ -x "$BIN" ]] || { echo "找不到 $BIN，请先运行 ./scripts/build-app.sh"; exit 1; }
+[[ -x "$BIN" ]] || { echo "找不到 ${BIN}，请先运行 ./scripts/build-app.sh"; exit 1; }
 if pgrep -x CopyT >/dev/null; then echo "请先退出正在运行的 CopyT"; exit 1; fi
 
 # 备份并在退出时恢复用户自己的设置
