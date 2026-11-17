@@ -1,0 +1,79 @@
+name: Release
+
+# 推送 v* 标签（如 v0.1.0）时自动测试、打包并发布安装包；
+# 也可以在 Actions 页面手动运行并填写版本号。
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '版本号（不带 v，例如 0.1.0）'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-latest   # Apple Silicon (arm64) runner
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve version
+        run: |
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            VERSION="${{ inputs.version }}"
+          fi
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "版本号格式应为 1.2.3，实际为 '$VERSION'"; exit 1; }
+          grep -q "^## \[$VERSION\]" CHANGELOG.md || { echo "CHANGELOG.md 中没有 [$VERSION] 一节"; exit 1; }
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+
+      - name: Unit tests
+        run: swift test --parallel
+
+      - name: Package
+        run: ./scripts/package.sh
+
+      - name: Verify installer
+        run: |
+          DMG="dist/CopyT-$VERSION-arm64.dmg"
+          (cd dist && shasum -a 256 -c SHA256SUMS.txt)
+          MNT="$(mktemp -d)"
+          hdiutil attach "$DMG" -nobrowse -readonly -mountpoint "$MNT"
+          ls -la "$MNT"
+          test -L "$MNT/Applications"
+          test -f "$MNT/安装说明.txt"
+          test -f "$MNT/LICENSE.txt"
+          codesign --verify --deep --strict --verbose=2 "$MNT/CopyT.app"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$MNT/CopyT.app/Contents/Info.plist")" = "$VERSION"
+          test "$(lipo -archs "$MNT/CopyT.app/Contents/MacOS/CopyT")" = "arm64"
+          # 把安装包里的应用拷出来，后面的端到端测试就针对它运行
+          mkdir -p installed
+          ditto "$MNT/CopyT.app" installed/CopyT.app
+          hdiutil detach "$MNT"
+
+      - name: End-to-end tests (app taken from the DMG)
+        run: APP=installed/CopyT.app ./scripts/e2e/run.sh
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          {
+            awk -v v="$VERSION" '$0 ~ "^## \\[" v "\\]" {f=1; next} /^## \[/ {f=0} f' CHANGELOG.md
+            cat .github/release-footer.md
+            echo '```'
+            cat dist/SHA256SUMS.txt
+            echo '```'
+          } > release-notes.md
+          cat release-notes.md
+          gh release create "v$VERSION" \
+            "dist/CopyT-$VERSION-arm64.dmg" \
+            "dist/CopyT-$VERSION-arm64.zip" \
+            dist/SHA256SUMS.txt \
+            --target "$GITHUB_SHA" \
+            --title "CopyT $VERSION" \
+            --notes-file release-notes.md
