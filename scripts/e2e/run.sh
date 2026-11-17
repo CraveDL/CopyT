@@ -197,5 +197,5 @@ check "最后一次快速复制一定被记录" wait_for "$(count_text '快速�
 if grep -qiE "fatal|crash|exception" "$WORK/app.log"; then bad "应用日志无异常"; cat "$WORK/app.log"; else ok "应用日志无异常"; fi
 
 echo
-echo "结果：通过 $PASS，失败 $FAIL"
+echo "结果：通过 ${PASS}，失败 ${FAIL}"
 [[ $FAIL -eq 0 ]]
