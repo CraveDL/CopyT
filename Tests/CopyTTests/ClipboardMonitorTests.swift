@@ -159,6 +159,7 @@ final class ClipboardMonitorTests: XCTestCase {
     @MainActor
     private func makeMonitor(_ pb: NSPasteboard, bundleID: String? = "com.apple.TextEdit") -> (ClipboardMonitor, () -> [Capture]) {
         let monitor = ClipboardMonitor(pasteboard: pb)
+        monitor.settleDelay = 0
         monitor.frontmostApp = { ("App", bundleID) }
         var got: [Capture] = []
         monitor.onCapture = { got.append($0) }
@@ -247,9 +248,64 @@ final class ClipboardMonitorTests: XCTestCase {
     }
 
     @MainActor
+    func testManyFilesAllCaptured() throws {
+        let dir = try makeTempDir(self)
+        let urls = (1...12).map { dir.appendingPathComponent("文件 \($0).txt") }
+        for u in urls { try "x".write(to: u, atomically: true, encoding: .utf8) }
+        let pb = makePasteboard(self)
+        pb.clearContents()
+        pb.writeObjects(urls as [NSURL])
+        XCTAssertEqual(ClipboardMonitor.fileURLs(pb).count, 12)
+        let c = try XCTUnwrap(capture(pb))
+        XCTAssertEqual(c.text?.split(separator: "\n").count, 12)
+    }
+
+    @MainActor
+    func testSettleDelayWaitsForWriterToFinish() {
+        let pb = makePasteboard(self)
+        let (m, got) = makeMonitor(pb)
+        m.settleDelay = 0.2
+        pb.clearContents()
+        m.poll() // 只看到 clearContents，内容还没写入
+        pb.setString("complete content", forType: .string) // 同一个 changeCount 内写完
+        let exp = expectation(description: "settled")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { exp.fulfill() }
+        wait(for: [exp], timeout: 2)
+        XCTAssertEqual(got().map(\.text), ["complete content"])
+    }
+
+    @MainActor
+    func testSettleDelayDropsSupersededChange() {
+        let pb = makePasteboard(self)
+        let (m, got) = makeMonitor(pb)
+        m.settleDelay = 0.2
+        pb.clearContents(); pb.setString("old", forType: .string)
+        m.poll()
+        pb.clearContents(); pb.setString("new", forType: .string)
+        let exp = expectation(description: "settled")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { m.poll() }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { exp.fulfill() }
+        wait(for: [exp], timeout: 2)
+        XCTAssertEqual(got().map(\.text), ["new"], "被覆盖的中间状态不记录，只记录最终内容")
+    }
+
+    @MainActor
+    func testConcealedMarkerOnSecondItemStillSkipped() {
+        let pb = makePasteboard(self)
+        let (m, got) = makeMonitor(pb)
+        pb.clearContents()
+        let a = NSPasteboardItem(); a.setString("visible", forType: .string)
+        let b = NSPasteboardItem(); b.setData(Data(), forType: NSPasteboard.PasteboardType("org.nspasteboard.ConcealedType"))
+        pb.writeObjects([a, b])
+        m.poll()
+        XCTAssertTrue(got().isEmpty)
+    }
+
+    @MainActor
     func testTimerDrivenCapture() {
         let pb = makePasteboard(self)
         let (m, got) = makeMonitor(pb)
+        m.settleDelay = 0.15
         m.start(interval: 0.05)
         defer { m.stop() }
         pb.clearContents(); pb.setString("timer", forType: .string)

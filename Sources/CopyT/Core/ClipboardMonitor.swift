@@ -13,6 +13,10 @@ final class ClipboardMonitor {
         return (app?.localizedName, app?.bundleIdentifier)
     }
 
+    /// 检测到变化后等待多久再读取，确保来源应用已写完所有条目（如一次复制多个文件）。
+    /// 测试中设为 0 以同步读取。
+    var settleDelay: TimeInterval = 0.15
+
     private var timer: Timer?
     private var lastChangeCount: Int
 
@@ -59,15 +63,46 @@ final class ClipboardMonitor {
 
         guard !Preferences.paused else { return }
 
-        let types = Set(pb.types ?? [])
-        guard !types.isEmpty, types.isDisjoint(with: Self.privateTypes) else { return }
-
+        // 在复制发生的这一刻记下来源应用
         let app = frontmostApp()
         if let bid = app.bundleID, Preferences.ignoredBundleIDs.contains(bid) { return }
 
-        if let capture = Self.makeCapture(from: pb, types: types, sourceApp: app.name) {
+        guard settleDelay > 0 else {
+            read(changeCount: count, sourceApp: app.name)
+            return
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + settleDelay) { [weak self] in
+            Task { @MainActor in self?.read(changeCount: count, sourceApp: app.name) }
+        }
+    }
+
+    private func read(changeCount: Int, sourceApp: String?) {
+        let pb = pasteboard
+        // 等待期间剪贴板又变了：交给下一次轮询处理较新的内容
+        guard pb.changeCount == changeCount else { return }
+        let types = Self.allTypes(pb)
+        guard !types.isEmpty, types.isDisjoint(with: Self.privateTypes) else { return }
+        if let capture = Self.makeCapture(from: pb, types: types, sourceApp: sourceApp) {
             onCapture?(capture)
         }
+    }
+
+    /// 所有条目的类型（NSPasteboard.types 只反映第一个条目）
+    static func allTypes(_ pb: NSPasteboard) -> Set<NSPasteboard.PasteboardType> {
+        var types = Set(pb.types ?? [])
+        for item in pb.pasteboardItems ?? [] { types.formUnion(item.types) }
+        return types
+    }
+
+    /// 读取剪贴板上全部文件 URL：逐个条目读取，并与 readObjects 的结果取较完整者
+    static func fileURLs(_ pb: NSPasteboard) -> [URL] {
+        let perItem: [URL] = (pb.pasteboardItems ?? []).compactMap { item in
+            guard let s = item.string(forType: .fileURL), let url = URL(string: s), url.isFileURL else { return nil }
+            return url.standardizedFileURL
+        }
+        let objects = (pb.readObjects(forClasses: [NSURL.self],
+                                      options: [.urlReadingFileURLsOnly: true]) as? [URL]) ?? []
+        return perItem.count >= objects.count ? perItem : objects
     }
 
     // MARK: - 解析剪贴板
@@ -77,10 +112,7 @@ final class ClipboardMonitor {
                             sourceApp: String?,
                             maxImageBytes: Int = Preferences.maxImageBytes) -> Capture? {
         // 1. 文件（Finder 复制文件时也会带上文件名字符串和图标，所以优先判断）
-        if types.contains(.fileURL),
-           let urls = pb.readObjects(forClasses: [NSURL.self],
-                                     options: [.urlReadingFileURLsOnly: true]) as? [URL],
-           !urls.isEmpty {
+        if types.contains(.fileURL), case let urls = fileURLs(pb), !urls.isEmpty {
             let text = urls.map(\.path).joined(separator: "\n")
             return Capture(kind: .file, text: text, data: nil, fileExtension: nil,
                            sourceApp: sourceApp, hash: sha256("file", Data(text.utf8)), byteSize: 0)

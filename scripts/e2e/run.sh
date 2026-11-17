@@ -113,12 +113,13 @@ check "同一张图片不重复保存" stays "SELECT COUNT(*) FROM items WHERE k
 check "media 目录中只有一份图片" bash -c "[[ \$(ls '$ROOT/$TODAY_DIR'/*.png | wc -l) -eq 1 ]]"
 
 echo "▶ 6. 文件"
-mkdir -p "$WORK/docs"; echo a > "$WORK/docs/报告 A.txt"; echo b > "$WORK/docs/b.mov"
-pb files "$WORK/docs/报告 A.txt" "$WORK/docs/b.mov"
-check "记录 Finder 复制的文件" wait_for "SELECT COUNT(*) FROM items WHERE kind = 'file';" 1
-check "保存了所有文件路径" wait_for "SELECT (text LIKE '%报告 A.txt%') AND (text LIKE '%b.mov%') FROM items WHERE kind = 'file';" 1
-echo "     记录内容: $(q "SELECT replace(text, char(10), ' | ') FROM items WHERE kind = 'file';")"
-echo "     剪贴板类型: $(osascript -e 'clipboard info' 2>&1 | head -c 400)"
+mkdir -p "$WORK/docs/子文件夹"; echo a > "$WORK/docs/报告 A.txt"; echo b > "$WORK/docs/b.mov"
+for i in $(seq 1 8); do echo $i > "$WORK/docs/f$i.jpg"; done
+pb files "$WORK/docs/报告 A.txt"
+check "记录单个文件" wait_for "SELECT COUNT(*) FROM items WHERE kind = 'file' AND text LIKE '%报告 A.txt';" 1
+pb files "$WORK/docs/报告 A.txt" "$WORK/docs/b.mov" "$WORK/docs/子文件夹" "$WORK"/docs/f*.jpg
+check "一次复制 11 个文件/文件夹，全部记录" wait_for "SELECT MAX(length(text) - length(replace(text, char(10), '')) + 1) FROM items WHERE kind = 'file';" 11
+check "多文件记录包含文件夹和中文名" wait_for "SELECT COUNT(*) FROM items WHERE kind = 'file' AND text LIKE '%子文件夹%' AND text LIKE '%报告 A.txt%' AND text LIKE '%b.mov%';" 1
 
 echo "▶ 7. 隐私"
 pb concealed "my-secret-password-123"
