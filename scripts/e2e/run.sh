@@ -117,6 +117,8 @@ mkdir -p "$WORK/docs"; echo a > "$WORK/docs/报告 A.txt"; echo b > "$WORK/docs/
 pb files "$WORK/docs/报告 A.txt" "$WORK/docs/b.mov"
 check "记录 Finder 复制的文件" wait_for "SELECT COUNT(*) FROM items WHERE kind = 'file';" 1
 check "保存了所有文件路径" wait_for "SELECT (text LIKE '%报告 A.txt%') AND (text LIKE '%b.mov%') FROM items WHERE kind = 'file';" 1
+echo "     记录内容: $(q "SELECT replace(text, char(10), ' | ') FROM items WHERE kind = 'file';")"
+echo "     剪贴板类型: $(osascript -e 'clipboard info' 2>&1 | head -c 400)"
 
 echo "▶ 7. 隐私"
 pb concealed "my-secret-password-123"

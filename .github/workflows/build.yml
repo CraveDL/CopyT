@@ -13,7 +13,7 @@ jobs:
       - name: Swift version
         run: swift --version && sw_vers
       - name: Unit tests
-        run: swift test --parallel 2>&1 | tee unit-tests.log
+        run: swift test --parallel
       - name: Build app
         run: ./scripts/build-app.sh
       - name: End-to-end tests (real app + system pasteboard)
