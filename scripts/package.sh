@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # 打包安装包：dist/CopyT-<版本>-<架构>.dmg、.zip 和 SHA256SUMS.txt
-# 用法: VERSION=0.1.0 ./scripts/package.sh
+# 用法: VERSION=0.1.1 ./scripts/package.sh
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-export VERSION="${VERSION:-0.1.0}"
+export VERSION="${VERSION:-0.1.1}"
 export ARCH="${ARCH:-arm64}"
 APP="build/CopyT.app"
 NAME="CopyT-${VERSION}-${ARCH}"

@@ -147,7 +147,7 @@ cd CopyT
 open build/CopyT.app
 ```
 
-- 生成安装包：`VERSION=0.1.0 ./scripts/package.sh`，输出在 `dist/`。
+- 生成安装包：`VERSION=0.1.1 ./scripts/package.sh`，输出在 `dist/`。
 - 开发调试：`swift run`，或 `open Package.swift` 用 Xcode 打开。
 - `ARCH=universal ./scripts/build-app.sh` 可以构建同时支持 Intel 的通用包，但这个配置没有经过测试。
 
