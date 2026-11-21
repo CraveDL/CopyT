@@ -8,6 +8,8 @@
     <string>CopyT</string>
     <key>CFBundleExecutable</key>
     <string>CopyT</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
     <key>CFBundleIdentifier</key>
     <string>io.github.cravedl.copyt</string>
     <key>CFBundleInfoDictionaryVersion</key>

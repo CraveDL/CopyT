@@ -22,6 +22,8 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN_DIR/CopyT" "$APP/Contents/MacOS/CopyT"
 sed "s/__VERSION__/$VERSION/g" Resources/Info.plist > "$APP/Contents/Info.plist"
+# 应用图标：把各尺寸 PNG 打包成 .icns（iconutil 为 macOS 自带）
+iconutil -c icns Resources/AppIcon.iconset -o "$APP/Contents/Resources/AppIcon.icns"
 
 # 本地 ad-hoc 签名（无需开发者账号）
 codesign --force --deep --sign - "$APP"

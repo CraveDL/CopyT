@@ -1,3 +1,5 @@
+<p align="center"><img src="Resources/AppIcon.iconset/icon_128x128@2x.png" width="128" alt="CopyT 图标"></p>
+
 # CopyT
 
 [![Build & Test](https://github.com/CraveDL/CopyT/actions/workflows/build.yml/badge.svg)](https://github.com/CraveDL/CopyT/actions/workflows/build.yml)

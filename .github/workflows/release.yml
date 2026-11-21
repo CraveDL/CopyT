@@ -47,6 +47,7 @@ jobs:
           test -L "$MNT/Applications"
           test -f "$MNT/安装说明.txt"
           test -f "$MNT/LICENSE.txt"
+          test -s "$MNT/CopyT.app/Contents/Resources/AppIcon.icns"
           codesign --verify --deep --strict --verbose=2 "$MNT/CopyT.app"
           test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$MNT/CopyT.app/Contents/Info.plist")" = "$VERSION"
           test "$(lipo -archs "$MNT/CopyT.app/Contents/MacOS/CopyT")" = "arm64"

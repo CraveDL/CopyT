@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- CopyT 应用图标。修改后运行 node scripts/make-icon.cjs 重新生成 AppIcon.iconset -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#43D9C9"/>
+      <stop offset="1" stop-color="#1F5FE0"/>
+    </linearGradient>
+    <linearGradient id="sheet" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#EEF3FC"/>
+    </linearGradient>
+    <filter id="iconShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="12" stdDeviation="14" flood-color="#000000" flood-opacity="0.28"/>
+    </filter>
+    <filter id="sheetShadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="10" stdDeviation="16" flood-color="#0B2A66" flood-opacity="0.32"/>
+    </filter>
+    <clipPath id="shape">
+      <rect x="100" y="100" width="824" height="824" rx="186"/>
+    </clipPath>
+  </defs>
+
+  <!-- macOS 图标网格：1024 画布中 824×824 的圆角矩形 -->
+  <rect x="100" y="100" width="824" height="824" rx="186" fill="url(#bg)" filter="url(#iconShadow)"/>
+  <g clip-path="url(#shape)">
+    <!-- 顶部高光 -->
+    <ellipse cx="512" cy="60" rx="560" ry="300" fill="#FFFFFF" opacity="0.14"/>
+
+    <!-- 历史记录：后面两张更早的卡片 -->
+    <rect x="356" y="214" width="412" height="506" rx="52" fill="#FFFFFF" opacity="0.30"/>
+    <rect x="308" y="256" width="412" height="506" rx="52" fill="#FFFFFF" opacity="0.58"/>
+
+    <!-- 最新的一张：剪贴板 -->
+    <g filter="url(#sheetShadow)">
+      <rect x="258" y="300" width="412" height="506" rx="52" fill="url(#sheet)"/>
+    </g>
+    <rect x="374" y="260" width="180" height="84" rx="30" fill="#14336B"/>
+    <circle cx="464" cy="296" r="15" fill="#6FA4F5"/>
+
+    <rect x="318" y="424" width="292" height="40" rx="20" fill="#2F7BEF"/>
+    <rect x="318" y="512" width="292" height="40" rx="20" fill="#C5D6F4"/>
+    <rect x="318" y="600" width="292" height="40" rx="20" fill="#C5D6F4"/>
+    <rect x="318" y="688" width="176" height="40" rx="20" fill="#C5D6F4"/>
+  </g>
+</svg>
