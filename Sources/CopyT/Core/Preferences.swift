@@ -52,8 +52,12 @@ enum Preferences {
     static var paused: Bool { defaults.bool(forKey: Key.paused) }
 
     static var ignoredBundleIDs: Set<String> {
-        let raw = defaults.string(forKey: Key.ignoredApps) ?? ""
-        return Set(raw.split(whereSeparator: { $0 == "\n" || $0 == "," })
+        parseBundleIDs(defaults.string(forKey: Key.ignoredApps) ?? "")
+    }
+
+    /// 解析忽略列表：每行或逗号分隔一个 Bundle ID
+    static func parseBundleIDs(_ raw: String) -> Set<String> {
+        Set(raw.split(whereSeparator: { $0 == "\n" || $0 == "," })
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty })
     }

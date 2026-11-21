@@ -45,14 +45,9 @@ final class ModelTests: XCTestCase {
 
     func testPreferenceDefaultsAndParsing() {
         Preferences.registerDefaults()
-        let key = Preferences.Key.ignoredApps
-        let old = UserDefaults.standard.object(forKey: key)
-        defer { UserDefaults.standard.set(old, forKey: key) }
-
-        UserDefaults.standard.removeObject(forKey: key)
-        XCTAssertTrue(Preferences.ignoredBundleIDs.contains("com.1password.1password"))
-        UserDefaults.standard.set(" a.b ,c.d\n\n e.f ", forKey: key)
-        XCTAssertEqual(Preferences.ignoredBundleIDs, ["a.b", "c.d", "e.f"])
+        XCTAssertTrue(Preferences.parseBundleIDs(Preferences.defaultIgnoredApps).contains("com.1password.1password"))
+        XCTAssertEqual(Preferences.parseBundleIDs(" a.b ,c.d\n\n e.f "), ["a.b", "c.d", "e.f"])
+        XCTAssertEqual(Preferences.parseBundleIDs(""), [])
         XCTAssertGreaterThan(Preferences.maxImageBytes, 0)
         XCTAssertTrue(Preferences.defaultStorageURL.path.hasSuffix("Application Support/CopyT"))
     }

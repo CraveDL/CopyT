@@ -161,6 +161,9 @@ final class ClipboardMonitorTests: XCTestCase {
         let monitor = ClipboardMonitor(pasteboard: pb)
         monitor.settleDelay = 0
         monitor.frontmostApp = { ("App", bundleID) }
+        // 不读写全局 UserDefaults：测试并行运行时会共用同一份设置而互相干扰
+        monitor.isPaused = { false }
+        monitor.ignoredBundleIDs = { Preferences.parseBundleIDs(Preferences.defaultIgnoredApps) }
         var got: [Capture] = []
         monitor.onCapture = { got.append($0) }
         return (monitor, { got })
@@ -205,15 +208,14 @@ final class ClipboardMonitorTests: XCTestCase {
         m.poll()
         XCTAssertTrue(got().isEmpty)
 
-        let key = Preferences.Key.ignoredApps
-        let old = UserDefaults.standard.object(forKey: key)
-        defer { UserDefaults.standard.set(old, forKey: key) }
-        UserDefaults.standard.set("com.example.a, com.example.secret\n", forKey: key)
+        let custom = Preferences.parseBundleIDs("com.example.a, com.example.secret\n")
         let (m2, got2) = makeMonitor(pb, bundleID: "com.example.secret")
+        m2.ignoredBundleIDs = { custom }
         pb.clearContents(); pb.setString("x", forType: .string)
         m2.poll()
         XCTAssertTrue(got2().isEmpty)
         let (m3, got3) = makeMonitor(pb, bundleID: "com.1password.1password")
+        m3.ignoredBundleIDs = { custom }
         pb.clearContents(); pb.setString("y", forType: .string)
         m3.poll()
         XCTAssertEqual(got3().count, 1, "自定义列表替换默认列表后，1Password 不再被忽略")
@@ -223,13 +225,13 @@ final class ClipboardMonitorTests: XCTestCase {
     func testPausedSkipsButResumes() {
         let pb = makePasteboard(self)
         let (m, got) = makeMonitor(pb)
-        UserDefaults.standard.set(true, forKey: Preferences.Key.paused)
-        defer { UserDefaults.standard.removeObject(forKey: Preferences.Key.paused) }
+        var paused = true
+        m.isPaused = { paused }
         pb.clearContents(); pb.setString("while paused", forType: .string)
         m.poll()
         XCTAssertTrue(got().isEmpty)
 
-        UserDefaults.standard.set(false, forKey: Preferences.Key.paused)
+        paused = false
         m.poll()
         XCTAssertTrue(got().isEmpty, "暂停期间的内容恢复后也不补记")
         pb.clearContents(); pb.setString("after", forType: .string)

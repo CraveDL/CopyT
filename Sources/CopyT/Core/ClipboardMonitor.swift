@@ -13,6 +13,10 @@ final class ClipboardMonitor {
         return (app?.localizedName, app?.bundleIdentifier)
     }
 
+    /// 是否暂停记录、忽略哪些应用（默认读取用户设置；测试时替换，避免改动全局设置）
+    var isPaused: () -> Bool = { Preferences.paused }
+    var ignoredBundleIDs: () -> Set<String> = { Preferences.ignoredBundleIDs }
+
     /// 检测到变化后等待多久再读取，确保来源应用已写完所有条目（如一次复制多个文件）。
     /// 测试中设为 0 以同步读取。
     var settleDelay: TimeInterval = 0.15
@@ -61,11 +65,11 @@ final class ClipboardMonitor {
         guard count != lastChangeCount else { return }
         lastChangeCount = count
 
-        guard !Preferences.paused else { return }
+        guard !isPaused() else { return }
 
         // 在复制发生的这一刻记下来源应用
         let app = frontmostApp()
-        if let bid = app.bundleID, Preferences.ignoredBundleIDs.contains(bid) { return }
+        if let bid = app.bundleID, ignoredBundleIDs().contains(bid) { return }
 
         guard settleDelay > 0 else {
             read(changeCount: count, sourceApp: app.name)
