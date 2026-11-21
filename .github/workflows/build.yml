@@ -41,16 +41,15 @@ jobs:
               let c = rep.colorAt(x: x, y: y)!
               return (Int(c.redComponent * 255), Int(c.greenComponent * 255), Int(c.blueComponent * 255))
           }
-          let bottom = rgb(128, 214), card = rgb(100, 150)
+          let bottom = rgb(128, 214), card = rgb(115, 121)
           print("bottom pixel rgb=\(bottom)  card pixel rgb=\(card)")
-          guard bottom.2 > 150, bottom.0 < 120, card.0 > 200, card.1 > 200, card.2 > 200 else {
+          guard bottom.2 > 150, bottom.0 < 120, card.0 > 225, card.1 > 225, card.2 > 225 else {
               print("❌ 应用图标不是预期的 CopyT 图标"); exit(1)
           }
           print("✅ 应用图标已生效")
           SWIFT
           swiftc -O /tmp/appicon.swift -o /tmp/appicon
           /tmp/appicon "$PWD/build/CopyT.app" "$PWD/build/app-icon-rendered.png"
-          echo "ICON_B64_BEGIN"; base64 -i build/app-icon-rendered.png | fold -w 200; echo "ICON_B64_END"
       - uses: actions/upload-artifact@v4
         with:
           name: app-icon-rendered
